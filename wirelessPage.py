@@ -195,7 +195,7 @@ class FirstPage(Frame):
         labelCF = Label(frameConfig, text="Cutoff Frequence (Hz)")
         labelCF.place(x=10, y=155)
         self.entryCoFreq = Entry(frameConfig, width=7, justify="center")
-        self.entryCoFreq.insert(0, "0.01")
+        self.entryCoFreq.insert(0, "2")
         self.entryCoFreq.place(x=150, y=155)
 
     def informationFrame(self):
@@ -311,7 +311,7 @@ class FirstPage(Frame):
             self.restart()
 
     def lowpass(self, y, fc, fs):
-        b, a = signal.butter(3, fc*2e2/(fs*0.5), "low")
+        b, a = signal.butter(3, fc/(fs*0.5), "low")
         filtered_current = signal.filtfilt(b, a, y, padlen=len(y)-1)
         return filtered_current
 
@@ -343,7 +343,7 @@ class FirstPage(Frame):
         self.canvas.draw()
 
         fc = float(self.entryCoFreq.get())
-        fs = int(self.entryScanRate.get())
+        sr = int(self.entryScanRate.get())
         columnName = ["mV_1", "uA_1", "filter_uA_1",
                       "mV_2", "uA_2", "filter_uA_2",
                       "mV_3", "uA_3", "filter_uA_3",
@@ -358,7 +358,7 @@ class FirstPage(Frame):
             if not listValues[i][0]:
                 break
             else:
-                listValues[i].append(self.lowpass(listValues[i][1], fc, fs))
+                listValues[i].append(self.lowpass(listValues[i][1], fc, sr))
                 # self.ax.plot(listValues[i][0],
                 #              listValues[i][2],
                 #              color=self.listColor[i],
@@ -371,10 +371,10 @@ class FirstPage(Frame):
                 self.canvas.draw()
                 self.updateDataTable(i, listValues[i][2])
 
-                self.client.publish("CV/min_v_"+str(i+1),listValues[i][0][listValues[i][2].tolist().index(min(listValues[i][2]))])
-                self.client.publish("CV/min_a_"+str(i+1),round(min(listValues[i][2]), 3))
-                self.client.publish("CV/max_v_"+str(i+1),listValues[i][0][listValues[i][2].tolist().index(max(listValues[i][2]))])
-                self.client.publish("CV/max_a_"+str(i+1),round(max(listValues[i][2]), 3))
+                self.client.publish("CV/min_v_"+str(i+1), listValues[i][0][listValues[i][2].tolist().index(min(listValues[i][2]))])
+                self.client.publish("CV/min_i_"+str(i+1), round(min(listValues[i][2]), 2))
+                self.client.publish("CV/max_v_"+str(i+1), listValues[i][0][listValues[i][2].tolist().index(max(listValues[i][2]))])
+                self.client.publish("CV/max_i_"+str(i+1), round(max(listValues[i][2]), 2))
                 
                 if i==1:
                     temp = np.append(listValues[i-1], listValues[i], axis=0)
@@ -456,7 +456,7 @@ class FirstPage(Frame):
             messagebox.showinfo("Notification", "File is saved successfully")
 
     def login(self):
-        try:
+        # try:
             username = self.entryUsername.get()
             password = self.entryPassword.get()
             self.client.username_pw_set(username, password)
@@ -468,8 +468,8 @@ class FirstPage(Frame):
 
             self.buttonSecondPage.configure(state=DISABLED)
             self.buttonThirdPage.configure(state=DISABLED)
-        except Exception as e:
-            messagebox.showerror("Error", "Login failed\n"+str(e))
+        # except Exception as e:
+        #     messagebox.showerror("Error", "Login failed\n"+str(e))
 
     def logout(self):
         self.client.loop_stop()
@@ -545,7 +545,6 @@ class FirstPage(Frame):
         self.buttonLogout.configure(state=DISABLED)
         self.buttonRestartESP.configure(state=DISABLED)
         print(client, rc)
-        print("?")
 
     def resetData(self):
         self.canvas.get_tk_widget().destroy()

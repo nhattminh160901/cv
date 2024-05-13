@@ -173,7 +173,7 @@ class SecondPage(Frame):
         labelCF = Label(frameConfig, text="Cutoff Frequence (Hz)")
         labelCF.place(x=10, y=155)
         self.entryCoFreq = Entry(frameConfig, width=7, justify="center")
-        self.entryCoFreq.insert(0, "0.01")
+        self.entryCoFreq.insert(0, "2")
         self.entryCoFreq.place(x=150, y=155)
 
     def informationFrame(self):
@@ -282,7 +282,7 @@ class SecondPage(Frame):
             self.runAfter = self.run_after(10, self.runningPlot)
         
     def lowpass(self, y, fc, fs):
-        b, a = signal.butter(3, fc*2e2/(fs*0.5), "low")
+        b, a = signal.butter(3, fc/(fs*0.5), "low")
         filtered_current = signal.filtfilt(b, a, y, padlen=len(y)-1)
         return filtered_current
 

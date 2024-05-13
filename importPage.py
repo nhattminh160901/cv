@@ -1,5 +1,7 @@
 from tkinter import *
 from tkinter import messagebox, ttk, filedialog
+
+import numpy as np
 from scipy import signal
 from pathlib import Path
 import pandas as pd
@@ -8,6 +10,7 @@ import wirelessPage as wP
 import serialPage as sP
 import matplotlib.pyplot as plt
 import paho.mqtt.client as mqtt
+from authfirebase import FirebaseAuth
 # 1200x650
 
 class ThirdPage(Frame):
@@ -53,7 +56,7 @@ class ThirdPage(Frame):
         self.buttoncalculateCM = Button(frameOperationsFile, text="Calculate CM", width=12, state=DISABLED, command=self.calculatecM)
         self.buttoncalculateCM.place(x=5, y=70)
 
-        self.buttonSend = Button(frameOperationsFile, text="Send M/M Values", width=14, state=DISABLED,
+        self.buttonSend = Button(frameOperationsFile, text="Send Values", width=14, state=DISABLED,
                                  command=lambda:self.sendValues("minmax", self.df))
         self.buttonSend.place(x=215, y=35)
 
@@ -117,7 +120,7 @@ class ThirdPage(Frame):
         column_list = self.df.columns.to_list()
         for i in range(int(len(column_list)/3)):
             list_index.append("V"+str(i+1))
-            list_index.append("A"+str(i+1))
+            list_index.append("I"+str(i+1))
             v = self.df[column_list[(i+1)*3-3]].values
             a = self.df[column_list[(i+1)*3-1]].values
             min_values.append(round(v[a.tolist().index(min(a))], 3))
@@ -158,14 +161,49 @@ class ThirdPage(Frame):
         self.df_new.to_csv(str(Path(self.filepath).parent) + "/minmaxtable.csv", index=False)
 
     def plotFigure(self):
-        filteredfig = plt.figure("filtered fig")
         listColor = ["red", "yellow", "purple", "blue", "green"]
+        plt.rcParams["font.family"] = "Arial"
+
+        fig, ax = plt.subplots(1, 2, figsize=(22, 9))
+
+        # ax[0].set_title("(a)\n",
+        #                   fontsize=24,
+        #                   loc='left')
+        # ax[1].set_title("(b)\n",
+        #                   fontsize=24,
+        #                   loc='left')
+
+        for _ in range(2):
+            ax[_].set_xlabel("Potential (mV)", fontsize=24)
+            ax[_].set_ylabel("Current (uA)", fontsize=24)
+            ax[_].tick_params(axis='both', which='major', labelsize=24)
+            ax[_].grid()
+
+        # plt.title("Wired (A)")
+        # plt.xlabel("Potential (mV)")
+        # plt.ylabel("Current (uA)")
+        # plt.grid()
+
         column_list = self.df.columns.to_list()
-        for i in range(int(len(column_list)/3)):
-            v = self.df[column_list[(i+1)*3-3]].values
-            a = self.df[column_list[(i+1)*3-1]].values
-            plt.plot(v, a, color=listColor[i])
-        filteredfig.show()
+        # min_i = []
+        # max_i = []
+        for _ in range(int(len(column_list)/3)):
+            if _>0:
+                v = self.df[column_list[(_+1)*3-3]].values
+                i = self.df[column_list[(_+1)*3-1]].values
+                i_raw = self.df[column_list[(_+1)*3-2]].values
+                # plt.plot(v, i, color=listColor[_])
+
+                ax[0].plot(v, i_raw, color=listColor[_])
+                ax[1].plot(v, i, color=listColor[_])
+
+                # min_i.append(int(v[i.tolist().index(min(i))]))
+                # max_i.append(int(v[i.tolist().index(max(i))]))
+
+        # axis[1].axvline(x=max(max_i), color='black', linestyle="dashdot")
+        # axis[1].axvline(x=min(min_i), color='black', linestyle="dashdot")
+        fig.savefig(str(Path(self.filepath).parent)+"/ok2.jpg", dpi=300)
+        plt.show()
 
     def sendValues(self, choice, data):
         newWindow = Toplevel()
@@ -228,22 +266,28 @@ class ThirdPage(Frame):
         def send():
             if choice == "minmax":
                 column_list = data.columns.to_list()
-                for i in range(int(len(column_list)/3)):
-                    v = data[column_list[(i+1)*3-3]].values
-                    a = data[column_list[(i+1)*3-1]].values
-                    client.publish(f"CV/min_v_{str(i+1)}", v[a.tolist().index(min(a))])
-                    client.publish(f"CV/min_a_{str(i+1)}", round(min(a), 3))
-                    client.publish(f"CV/max_v_{str(i+1)}", v[a.tolist().index(max(a))])
-                    client.publish(f"CV/max_a_{str(i+1)}", round(max(a), 3))
+                for _ in range(int(len(column_list)/3)):
+                    v = data[column_list[(_+1)*3-3]].values
+                    i = data[column_list[(_+1)*3-1]].values
+                    client.publish(f"CV/min_v_{str(_+1)}", int(v[i.tolist().index(min(i))]))
+                    client.publish(f"CV/min_i_{str(_+1)}", round(min(i), 2))
+                    client.publish(f"CV/max_v_{str(_+1)}", int(v[i.tolist().index(max(i))]))
+                    client.publish(f"CV/max_i_{str(_+1)}", round(max(i), 2))
+
+                if FirebaseAuth.firebase():
+                    filelist = os.listdir(str(Path(self.filepath).parent))
+                    for _ in filelist:
+                        if _.endswith("_lowpass.png"):
+                            st = FirebaseAuth.firebase().storage()
+                            st.child("injoker.png").put(f"{str(Path(self.filepath).parent)}/{_}")
 
                 newWindow.destroy()
                 messagebox.showinfo("Notification", "Complete")
             elif choice == "cm":
-                for _ in range(len(data.index)):
-                    client.publish(f"CV/min_cm_{str(_ + 1)}", data.cmmin[_])
-                    client.publish(f"CV/min_a_{str(_+1)}", data.Imin[_])
-                    client.publish(f"CV/max_cm_{str(_ + 1)}", data.cmmax[_])
-                    client.publish(f"CV/max_a_{str(_ + 1)}", data.Imax[_])
+                client.publish("CV/cm", round(np.average(data.cmmax.values), 2))
+
+                newWindow.destroy()
+                messagebox.showinfo("Notification", "Complete")
 
         buttonSend.configure(command=login)
     

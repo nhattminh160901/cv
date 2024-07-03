@@ -327,6 +327,41 @@ class FirstPage(Frame):
             self.client.publish("CV/max_v_"+str(num), "processing")
             self.client.publish("CV/max_a_"+str(num), "processing")
 
+    def calculatecM(self):
+        newWindow = Toplevel()
+        newWindow.title("Calculate cM")
+        newWindow.geometry("300x50")
+
+        labela = Label(newWindow, text="coefficient a")
+        labela.place(x=5, y=0)
+        entrya = Entry(newWindow, width=13)
+        entrya.place(x=7, y=20)
+        entrya.delete(0, END)
+        entrya.insert(0, "2") #5.64024
+
+        labelb = Label(newWindow, text="coefficient b")
+        labelb.place(x=105, y=0)
+        entryb = Entry(newWindow, width=13)
+        entryb.place(x=107, y=20)
+        entryb.delete(0, END)
+        entryb.insert(0, "3") #345.32
+
+        def calculate():
+            a = float(entrya.get())
+            b = float(entryb.get())
+
+            def cM(y, a, b):
+                x = (y-b)/a
+                return round(x, 3)
+
+            self.client.publish("CV/cm", cM(max(self.max_vl), a, b))
+            newWindow.destroy()
+            messagebox.showinfo("Notification", "Complete the measurement")
+
+        buttonCal = Button(newWindow, text="Calculate", command=calculate)
+        buttonCal.place(x=200, y=15)
+
+
     def endingPlot(self):
         self.canvas.get_tk_widget().destroy()
         self.fig_lowpass = Figure()
@@ -354,6 +389,9 @@ class FirstPage(Frame):
                       [self.x3, self.y3],
                       [self.x4, self.y4],
                       [self.x5, self.y5]]
+
+        self.max_vl = []
+
         for i in range(len(listValues)):
             if not listValues[i][0]:
                 break
@@ -370,18 +408,20 @@ class FirstPage(Frame):
                                      linewidth=2)
                 self.canvas.draw()
                 self.updateDataTable(i, listValues[i][2])
-
                 self.client.publish("CV/min_v_"+str(i+1), listValues[i][0][listValues[i][2].tolist().index(min(listValues[i][2]))])
                 self.client.publish("CV/min_i_"+str(i+1), round(min(listValues[i][2]), 2))
                 self.client.publish("CV/max_v_"+str(i+1), listValues[i][0][listValues[i][2].tolist().index(max(listValues[i][2]))])
                 self.client.publish("CV/max_i_"+str(i+1), round(max(listValues[i][2]), 2))
-                
+
+                self.max_vl.append(round(max(listValues[i][2]), 2))
+
                 if i==1:
                     temp = np.append(listValues[i-1], listValues[i], axis=0)
                 elif i>1:
                     temp = np.append(temp, listValues[i], axis=0)
                 else:
                     temp = listValues[i]
+
 
         if not os.path.exists("temp"):
             os.mkdir("temp")
@@ -392,10 +432,10 @@ class FirstPage(Frame):
             import shutil
             shutil.rmtree("temp")
 
+        self.calculatecM()
         self.df = pd.DataFrame(np.column_stack(temp), columns=columnName[:int(self.entryRT.get())*3])
         self.buttonSave.configure(state=NORMAL)
         self.buttonResetData.configure(state=NORMAL)
-        messagebox.showinfo("Notification", "Complete the measurement")
 
     def start(self):
         if self.statusESP == True:

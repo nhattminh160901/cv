@@ -186,15 +186,15 @@ class SecondPage(Frame):
         self.entryToS = Entry(frameInformationSave, width=20, justify="left")
         self.entryToS.place(x=10, y=30)
 
-        labelConcentration = Label(frameInformationSave, text="Concentration")
-        labelConcentration.place(x=10, y=65)
-        self.entryConcentration = Entry(frameInformationSave, width=20, justify="left")
-        self.entryConcentration.place(x=10, y=90)
-
         labelMT = Label(frameInformationSave, text="Measurement times")
-        labelMT.place(x=10, y=125)
+        labelMT.place(x=10, y=65)
         self.entryMT = Entry(frameInformationSave, width=20, justify="left")
-        self.entryMT.place(x=10, y=150)
+        self.entryMT.place(x=10, y=90)
+
+        labelConcentration = Label(frameInformationSave, text="Concentration")
+        labelConcentration.place(x=10, y=125)
+        self.entryConcentration = Label(frameInformationSave, text='None')
+        self.entryConcentration.place(x=10, y=150)
 
     def dataTable(self):
         self.frameDataTable = LabelFrame(self, text="Data Table")
@@ -313,6 +313,7 @@ class SecondPage(Frame):
                       [self.x3, self.y3],
                       [self.x4, self.y4],
                       [self.x5, self.y5]]
+        self.max_vl = []
         for i in range(len(listValues)):
             if not listValues[i][0]:
                 break
@@ -324,6 +325,7 @@ class SecondPage(Frame):
                                      linewidth=2)
                 self.canvas.draw()
                 self.updateDataTable(i, listValues[i][2])
+                self.max_vl.append(round(max(listValues[i][2]), 2))
                 if i==1:
                     temp = np.append(listValues[i-1], listValues[i], axis=0)
                 elif i>1:
@@ -338,6 +340,41 @@ class SecondPage(Frame):
         for i in range(len(filtered)*turn, len(filtered)*(turn+1)):
             temp = self.treeview.item(i, "values")
             self.treeview.item(i, values=(temp[0], temp[1], filtered[i-len(filtered)*turn]))
+
+
+    def calculatecM(self):
+        newWindow = Toplevel()
+        newWindow.title("Calculate cM")
+        newWindow.geometry("300x50")
+
+        labela = Label(newWindow, text="coefficient a")
+        labela.place(x=5, y=0)
+        entrya = Entry(newWindow, width=13)
+        entrya.place(x=7, y=20)
+        entrya.delete(0, END)
+        entrya.insert(0, "2") #5.64024
+
+        labelb = Label(newWindow, text="coefficient b")
+        labelb.place(x=105, y=0)
+        entryb = Entry(newWindow, width=13)
+        entryb.place(x=107, y=20)
+        entryb.delete(0, END)
+        entryb.insert(0, "3") #345.32
+
+        def calculate():
+            a = float(entrya.get())
+            b = float(entryb.get())
+
+            def cM(y, a, b):
+                x = (y-b)/a
+                return round(x, 3)
+
+            self.entryConcentration.configure(text=str(cM(max(self.max_vl), a, b)))
+            newWindow.destroy()
+            messagebox.showinfo("Notification", "Complete the measurement")
+
+        buttonCal = Button(newWindow, text="Calculate", command=calculate)
+        buttonCal.place(x=200, y=15)
 
     def connectToPORT(self):
         try:
@@ -434,7 +471,7 @@ class SecondPage(Frame):
         dt_str = now.strftime("%H_%M_%S")
         date_str = now.strftime("%d_%m_%Y")
         patch1 = self.entryToS.get()
-        patch2 = self.entryConcentration.get()
+        patch2 = self.entryConcentration.cget('text')
         patch3 = self.entryMT.get()
         patch = "data/"+patch1+"/"+patch2+"/"+date_str+"/"+patch3+"/"
         if not self.df.empty:

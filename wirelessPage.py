@@ -208,15 +208,15 @@ class FirstPage(Frame):
         self.entryToS = Entry(frameInformationSave, width=20, justify="left")
         self.entryToS.place(x=10, y=30)
 
-        labelConcentration = Label(frameInformationSave, text="Concentration")
-        labelConcentration.place(x=10, y=65)
-        self.entryConcentration = Entry(frameInformationSave, width=20, justify="left")
-        self.entryConcentration.place(x=10, y=90)
-
         labelMT = Label(frameInformationSave, text="Measurement times")
-        labelMT.place(x=10, y=125)
+        labelMT.place(x=10, y=65)
         self.entryMT = Entry(frameInformationSave, width=20, justify="left")
-        self.entryMT.place(x=10, y=150)
+        self.entryMT.place(x=10, y=90)
+
+        labelConcentration = Label(frameInformationSave, text="Concentration")
+        labelConcentration.place(x=10, y=125)
+        self.entryConcentration = Label(frameInformationSave, text='None')
+        self.entryConcentration.place(x=10, y=150)
 
     def add_logo(self, path, x, y):
         img = Image.open(path)
@@ -355,6 +355,7 @@ class FirstPage(Frame):
                 return round(x, 3)
 
             self.client.publish("CV/cm", cM(max(self.max_vl), a, b))
+            self.entryConcentration.configure(text=str(cM(max(self.max_vl), a, b)))
             newWindow.destroy()
             messagebox.showinfo("Notification", "Complete the measurement")
 
@@ -475,7 +476,7 @@ class FirstPage(Frame):
         dt_str = now.strftime("%H_%M_%S")
         date_str = now.strftime("%d_%m_%Y")
         patch1 = self.entryToS.get()
-        patch2 = self.entryConcentration.get()
+        patch2 = self.entryConcentration.cget('text')
         patch3 = self.entryMT.get()
         patch = "data/"+patch1+"/"+patch2+"/"+date_str+"/"+patch3+"/"
         if not self.df.empty:
